@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .sudoku-container {
+            background-color: #ffffff;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 90%;
+            width: 500px; /* Max width for the game container */
+        }
+        .sudoku-grid {
+            display: grid;
+            grid-template-columns: repeat(9, 1fr);
+            grid-template-rows: repeat(9, 1fr);
+            width: 100%;
+            max-width: 450px; /* Max width for the grid itself */
+            aspect-ratio: 1 / 1; /* Keep grid square */
+            border: 3px solid #333;
+            box-sizing: border-box;
+            border-radius: 0.5rem;
+            overflow: hidden; /* Ensures rounded corners apply correctly */
+        }
+        .sudoku-cell {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: clamp(1rem, 4vw, 1.8rem); /* Responsive font size */
+            font-weight: 600;
+            border: 1px solid #d1d5db; /* Tailwind gray-300 */
+            box-sizing: border-box;
+            background-color: #ffffff;
+        }
+        .sudoku-cell input {
+            width: 100%;
+            height: 100%;
+            text-align: center;
+            border: none;
+            background-color: transparent;
+            font-size: inherit;
+            font-weight: inherit;
+            color: #1f2937; /* Tailwind gray-900 */
+            outline: none;
+            padding: 0;
+            margin: 0;
+            -moz-appearance: textfield; /* Hide arrows for number input in Firefox */
+        }
+        .sudoku-cell input::-webkit-outer-spin-button,
+        .sudoku-cell input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .sudoku-cell.prefilled {
+            background-color: #e5e7eb; /* Tailwind gray-200 */
+            color: #4b5563; /* Tailwind gray-600 */
+            font-weight: 700;
+        }
+
+        /* Thicker borders for 3x3 blocks */
+        .sudoku-cell:nth-child(3n) {
+            border-right: 3px solid #333;
+        }
+        .sudoku-cell:nth-child(9n) {
+            border-right: 1px solid #d1d5db; /* Reset for end of row */
+        }
+        .sudoku-cell:nth-child(n+19):nth-child(-n+27),
+        .sudoku-cell:nth-child(n+46):nth-child(-n+54) {
+            border-bottom: 3px solid #333;
+        }
+        /* Reset for the last row */
+        .sudoku-grid div:nth-child(n+73):nth-child(-n+81) {
+            border-bottom: 1px solid #d1d5db;
+        }
+        /* Reset for the last column */
+        .sudoku-grid div:nth-child(9n) {
+            border-right: 3px solid #333;
+        }
+
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1.5rem;
+            width: 100%;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            flex-grow: 1; /* Allow buttons to grow */
+            min-width: 120px; /* Minimum width for buttons */
+        }
+        .btn-primary {
+            background-color: #4f46e5; /* Tailwind indigo-600 */
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #4338ca; /* Tailwind indigo-700 */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        }
+        .btn-secondary {
+            background-color: #e0e7ff; /* Tailwind indigo-100 */
+            color: #4f46e5; /* Tailwind indigo-600 */
+            border: 2px solid #4f46e5;
+        }
+        .btn-secondary:hover {
+            background-color: #c7d2fe; /* Tailwind indigo-200 */
+            transform: translateY(-2px);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+        }
+        .message-box {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            width: 100%;
+            text-align: center;
+            font-weight: 600;
+            color: #333;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            min-height: 40px; /* Ensure it has some height even when empty */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .message-box.success {
+            background-color: #d1fae5; /* Tailwind green-100 */
+            color: #065f46; /* Tailwind green-800 */
+        }
+        .message-box.error {
+            background-color: #fee2e2; /* Tailwind red-100 */
+            color: #991b1b; /* Tailwind red-800 */
+        }
+
+        @media (max-width: 600px) {
+            .sudoku-container {
+                padding: 1rem;
+            }
+            .sudoku-grid {
+                max-width: 300px; /* Smaller grid on small screens */
+            }
+            .sudoku-cell {
+                font-size: clamp(0.8rem, 3.5vw, 1.5rem);
+            }
+            .button-group {
+                flex-direction: column; /* Stack buttons on small screens */
+                gap: 0.75rem;
+            }
+            .btn {
+                width: 100%; /* Full width buttons */
+                min-width: unset;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div class="sudoku-container">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Sudoku Game</h1>
+        <div class="w-full mb-4 flex flex-col gap-2">
+            <label for="api-key" class="text-sm text-gray-600">Gemini API Key (stored locally)</label>
+            <div class="flex gap-2">
+                <input id="api-key" type="password" placeholder="Paste your Google AI Studio API key"
+                       class="flex-1 px-3 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                       autocomplete="off" />
+                <button id="save-key-btn" class="btn btn-secondary" style="min-width: 100px;">Save</button>
+            </div>
+        </div>
+        <div id="sudoku-grid" class="sudoku-grid">
+            <!-- Sudoku cells will be dynamically generated here -->
+        </div>
+        <div class="button-group">
+            <button id="new-game-btn" class="btn btn-primary">New Game</button>
+            <button id="solve-btn" class="btn btn-primary">Solve</button>
+            <button id="hint-btn" class="btn btn-primary">Get Hint ✨</button>
+            <button id="check-btn" class="btn btn-secondary">Check</button>
+            <button id="clear-btn" class="btn btn-secondary">Clear</button>
+        </div>
+        <div id="message-box" class="message-box">
+            Ready to play!
+        </div>
+    </div>
+
+    <script>
+        // Initial puzzle (0 represents empty cells) - a medium difficulty puzzle
+        const initialPuzzle = [
+            [5, 3, 0, 0, 7, 0, 0, 0, 0],
+            [6, 0, 0, 1, 9, 5, 0, 0, 0],
+            [0, 9, 8, 0, 0, 0, 0, 6, 0],
+            [8, 0, 0, 0, 6, 0, 0, 0, 3],
+            [4, 0, 0, 8, 0, 3, 0, 0, 1],
+            [7, 0, 0, 0, 2, 0, 0, 0, 6],
+            [0, 6, 0, 0, 0, 0, 2, 8, 0],
+            [0, 0, 0, 4, 1, 9, 0, 0, 5],
+            [0, 0, 0, 0, 8, 0, 0, 7, 9]
+        ];
+
+        let currentBoard = [];
+        let originalBoard = []; // To store the initial state for clearing
+
+        const sudokuGridElement = document.getElementById('sudoku-grid');
+        const messageBox = document.getElementById('message-box');
+        const hintButton = document.getElementById('hint-btn');
+
+        // --- UI Functions ---
+
+        /**
+         * Displays a message in the message box.
+         * @param {string} message - The message to display.
+         * @param {string} type - 'success', 'error', or empty for default.
+         */
+        function showMessage(message, type = '') {
+            messageBox.textContent = message;
+            messageBox.className = 'message-box'; // Reset classes
+            if (type) {
+                messageBox.classList.add(type);
+            }
+        }
+
+        /**
+         * Renders the Sudoku board in the HTML.
+         * @param {Array<Array<number>>} board - The 9x9 Sudoku board.
+         * @param {Array<Array<number>>} initial - The initial board state to mark prefilled cells.
+         */
+        function renderBoard(board, initial) {
+            sudokuGridElement.innerHTML = ''; // Clear existing grid
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('sudoku-cell');
+
+                    const input = document.createElement('input');
+                    input.type = 'number';
+                    input.min = '1';
+                    input.max = '9';
+                    input.maxLength = '1'; // Limit input to one character
+                    input.dataset.row = r;
+                    input.dataset.col = c;
+
+                    // If cell is prefilled (part of the initial puzzle)
+                    if (initial[r][c] !== 0) {
+                        input.value = initial[r][c];
+                        input.readOnly = true; // Make prefilled cells uneditable
+                        cell.classList.add('prefilled');
+                    } else if (board[r][c] !== 0) {
+                        input.value = board[r][c];
+                    } else {
+                        input.value = '';
+                    }
+
+                    // Event listener for user input
+                    input.addEventListener('input', (e) => {
+                        let value = e.target.value;
+                        // Only allow single digit numbers from 1-9
+                        if (value.length > 1) {
+                            value = value.slice(0, 1);
+                        }
+                        value = parseInt(value);
+                        if (isNaN(value) || value < 1 || value > 9) {
+                            e.target.value = ''; // Clear invalid input
+                            currentBoard[r][c] = 0;
+                        } else {
+                            e.target.value = value;
+                            currentBoard[r][c] = value;
+                        }
+                        showMessage('Ready to play!'); // Clear previous messages on input
+                    });
+
+                    // Event listener to clear cell on backspace/delete if empty
+                    input.addEventListener('keydown', (e) => {
+                        if ((e.key === 'Backspace' || e.key === 'Delete') && e.target.value === '') {
+                            currentBoard[r][c] = 0;
+                            showMessage('Ready to play!');
+                        }
+                    });
+
+                    cell.appendChild(input);
+                    sudokuGridElement.appendChild(cell);
+                }
+            }
+        }
+
+        /**
+         * Clears the user's input, reverting to the original puzzle state.
+         */
+        function clearBoard() {
+            currentBoard = JSON.parse(JSON.stringify(originalBoard)); // Deep copy
+            renderBoard(currentBoard, originalBoard);
+            showMessage('Board cleared!', 'success');
+        }
+
+        // --- Sudoku Solver Algorithm (Backtracking) ---
+
+        /**
+         * Finds the next empty cell (represented by 0) on the board.
+         * @param {Array<Array<number>>} board - The 9x9 Sudoku board.
+         * @returns {Array<number>|null} - [row, col] of the empty cell, or null if no empty cells.
+         */
+        function findEmpty(board) {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    if (board[r][c] === 0) {
+                        return [r, c];
+                    }
+                }
+            }
+            return null; // No empty cells found
+        }
+
+        /**
+         * Checks if placing a number at a specific position is valid according to Sudoku rules.
+         * @param {Array<Array<number>>} board - The 9x9 Sudoku board.
+         * @param {number} num - The number to check (1-9).
+         * @param {number} row - The row index.
+         * @param {number} col - The column index.
+         * @returns {boolean} - True if valid, false otherwise.
+         */
+        function isValid(board, num, row, col) {
+            // Check row
+            for (let x = 0; x < 9; x++) {
+                if (board[row][x] === num && x !== col) { // Exclude the current cell itself if it already contains the number
+                    return false;
+                }
+            }
+
+            // Check column
+            for (let x = 0; x < 9; x++) {
+                if (board[x][col] === num && x !== row) { // Exclude the current cell itself
+                    return false;
+                }
+            }
+
+            // Check 3x3 box
+            const startRow = Math.floor(row / 3) * 3;
+            const startCol = Math.floor(col / 3) * 3;
+            for (let i = 0; i < 3; i++) {
+                for (let j = 0; j < 3; j++) {
+                    if (board[startRow + i][startCol + j] === num && (startRow + i !== row || startCol + j !== col)) {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+
+        /**
+         * Solves the Sudoku board using a backtracking algorithm.
+         * This function modifies the board in place.
+         * @param {Array<Array<number>>} board - The 9x9 Sudoku board to solve.
+         * @returns {boolean} - True if a solution is found, false otherwise.
+         */
+        function solveSudoku(board) {
+            const find = findEmpty(board);
+            if (!find) {
+                return true; // No empty cells, puzzle solved
+            }
+
+            const [row, col] = find;
+
+            for (let num = 1; num <= 9; num++) {
+                if (isValid(board, num, row, col)) {
+                    board[row][col] = num;
+
+                    if (solveSudoku(board)) {
+                        return true; // Solution found
+                    }
+
+                    board[row][col] = 0; // Backtrack
+                }
+            }
+            return false; // No solution found for this path
+        }
+
+        /**
+         * Checks if the current board state is a valid and complete Sudoku solution.
+         * @param {Array<Array<number>>} board - The 9x9 Sudoku board.
+         * @returns {boolean} - True if the board is completely and correctly filled, false otherwise.
+         */
+        function checkCurrentBoard(board) {
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const num = board[r][c];
+                    if (num === 0 || !isValid(board, num, r, c)) {
+                        return false; // Cell is empty or invalid
+                    }
+                }
+            }
+            return true; // All cells are filled and valid
+        }
+
+        // --- Puzzle Generation ---
+
+        /**
+         * Generates a new solvable Sudoku puzzle.
+         * This is a simplified generation that fills a board and then removes cells.
+         * It might not guarantee a unique solution, but it will be solvable.
+         * @returns {Array<Array<number>>} - A new Sudoku puzzle.
+         */
+        function generateNewPuzzle() {
+            let newBoard = Array(9).fill(0).map(() => Array(9).fill(0));
+
+            // Fill the board completely using the solver
+            // This ensures a valid starting point
+            solveSudoku(newBoard);
+
+            // Create a deep copy to remove cells from
+            let puzzle = JSON.parse(JSON.stringify(newBoard));
+
+            // Randomly remove cells to create the puzzle
+            let cellsToRemove = 50; // Adjust difficulty here (more cells removed = harder)
+            while (cellsToRemove > 0) {
+                const r = Math.floor(Math.random() * 9);
+                const c = Math.floor(Math.random() * 9);
+                if (puzzle[r][c] !== 0) {
+                    puzzle[r][c] = 0;
+                    cellsToRemove--;
+                }
+            }
+            return puzzle;
+        }
+
+        // --- Gemini API Integration for Hints ---
+
+        /**
+         * Gets a hint from the Gemini API for an empty cell.
+         */
+        async function getHintFromGemini() {
+            hintButton.disabled = true; // Disable button during API call
+            showMessage('Getting a hint from AI...', '');
+
+            const emptyCell = findEmpty(currentBoard);
+            if (!emptyCell) {
+                showMessage('The board is already solved! No hints needed.', 'success');
+                hintButton.disabled = false;
+                return;
+            }
+
+            const [row, col] = emptyCell; // Get the first empty cell found
+
+            const prompt = `Given the following Sudoku board, find a valid number (1-9) that can be placed in row ${row}, column ${col} (0-indexed). Provide the suggested number and a very brief explanation for why it's a good move. Ensure the number is valid according to standard Sudoku rules (no duplicates in row, column, or 3x3 box).
+
+            Board:
+            ${JSON.stringify(currentBoard)}
+
+            Provide the response in JSON format with the following structure:
+            {
+              "hintFound": boolean,
+              "row": number,
+              "col": number,
+              "value": number,
+              "explanation": string,
+              "message": string
+            }
+            If no valid hint can be found for this specific cell, set hintFound to false and provide a message.
+            `;
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+
+            const payload = {
+                contents: chatHistory,
+                generationConfig: {
+                    responseMimeType: "application/json"
+                }
+            };
+
+            const apiKeyInput = document.getElementById('api-key');
+            const apiKey = (apiKeyInput && apiKeyInput.value) || localStorage.getItem('gemini_api_key') || '';
+            if (!apiKey) {
+                showMessage('Please enter your Gemini API key and click Save.', 'error');
+                hintButton.disabled = false;
+                return;
+            }
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    const detail = (result && (result.error && result.error.message)) || response.statusText;
+                    showMessage(`AI request failed: ${detail}`, 'error');
+                    return;
+                }
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    const rawText = result.candidates[0].content.parts[0].text || '';
+                    let parsedHint;
+                    try {
+                        parsedHint = JSON.parse(rawText);
+                    } catch (e) {
+                        showMessage('AI returned an unexpected format. Try again.', 'error');
+                        return;
+                    }
+
+                    if (parsedHint.hintFound && parsedHint.row === row && parsedHint.col === col &&
+                        parsedHint.value >= 1 && parsedHint.value <= 9 &&
+                        isValid(currentBoard, parsedHint.value, parsedHint.row, parsedHint.col)) { // Double check validity
+                        currentBoard[parsedHint.row][parsedHint.col] = parsedHint.value;
+                        renderBoard(currentBoard, originalBoard);
+                        showMessage(`Hint: Place ${parsedHint.value} at (${parsedHint.row + 1}, ${parsedHint.col + 1}). ${parsedHint.explanation}`, 'success');
+                    } else {
+                        showMessage(parsedHint.message || 'Could not get a useful hint. Try again!', 'error');
+                    }
+                } else {
+                    const blocked = (result.promptFeedback && result.promptFeedback.blockReason) || 'No candidates';
+                    showMessage(`Failed to get a hint from AI (${blocked}). Please try again.`, 'error');
+                }
+            } catch (error) {
+                console.error('Error fetching hint:', error);
+                showMessage('An error occurred while getting a hint. Please check your network.', 'error');
+            } finally {
+                hintButton.disabled = false; // Re-enable button
+            }
+        }
+
+
+        // --- Event Listeners ---
+
+        document.getElementById('solve-btn').addEventListener('click', () => {
+            // Make a deep copy to solve, so we don't modify the user's current input directly
+            // unless the solver finds a solution.
+            let boardToSolve = JSON.parse(JSON.stringify(currentBoard));
+            showMessage('Solving...', '');
+            setTimeout(() => { // Use a timeout to allow message to render before heavy computation
+                if (solveSudoku(boardToSolve)) {
+                    currentBoard = boardToSolve; // Update current board with solution
+                    renderBoard(currentBoard, originalBoard);
+                    showMessage('Puzzle solved!', 'success');
+                } else {
+                    showMessage('Could not solve the puzzle. Check your initial entries!', 'error');
+                }
+            }, 100);
+        });
+
+        document.getElementById('clear-btn').addEventListener('click', clearBoard);
+
+        document.getElementById('check-btn').addEventListener('click', () => {
+            showMessage('Checking...', '');
+            setTimeout(() => {
+                if (checkCurrentBoard(currentBoard)) {
+                    showMessage('Looks good! Keep going or you solved it!', 'success');
+                } else {
+                    showMessage('There are errors or empty cells. Keep trying!', 'error');
+                }
+            }, 100);
+        });
+
+        document.getElementById('new-game-btn').addEventListener('click', () => {
+            showMessage('Generating new puzzle...', '');
+            setTimeout(() => {
+                const newPuzzle = generateNewPuzzle();
+                originalBoard = JSON.parse(JSON.stringify(newPuzzle));
+                currentBoard = JSON.parse(JSON.stringify(newPuzzle));
+                renderBoard(currentBoard, originalBoard);
+                showMessage('New game started!', 'success');
+            }, 100);
+        });
+
+        document.getElementById('hint-btn').addEventListener('click', getHintFromGemini);
+
+        // --- Initialize Game ---
+        window.onload = function() {
+            // Start with the predefined initial puzzle
+            originalBoard = JSON.parse(JSON.stringify(initialPuzzle)); // Deep copy
+            currentBoard = JSON.parse(JSON.stringify(initialPuzzle)); // Deep copy
+            renderBoard(currentBoard, originalBoard);
+            showMessage('Welcome! Click "New Game" or solve this one.', '');
+
+            // Prefill API key from localStorage if present
+            const savedKey = localStorage.getItem('gemini_api_key');
+            const apiKeyInput = document.getElementById('api-key');
+            if (apiKeyInput && savedKey) {
+                apiKeyInput.value = savedKey;
+            }
+
+            const saveBtn = document.getElementById('save-key-btn');
+            if (saveBtn && apiKeyInput) {
+                saveBtn.addEventListener('click', () => {
+                    const key = apiKeyInput.value.trim();
+                    if (!key) {
+                        showMessage('API key cleared.', 'success');
+                        localStorage.removeItem('gemini_api_key');
+                        return;
+                    }
+                    localStorage.setItem('gemini_api_key', key);
+                    showMessage('API key saved locally.', 'success');
+                });
+            }
+        };
+
+    </script>
+</body>
+</html>
